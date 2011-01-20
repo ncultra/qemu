@@ -584,9 +584,9 @@ sub top_of_kernel_tree {
 	my ($root) = @_;
 
 	my @tree_check = (
-		"COPYING", "CREDITS", "Kbuild", "MAINTAINERS", "Makefile",
-		"README", "Documentation", "arch", "include", "drivers",
-		"fs", "init", "ipc", "kernel", "lib", "scripts",
+		"COPYING", "MAINTAINERS", "Makefile",
+		"README", "docs", "VERSION",
+		"vl.c"
 	);
 
 	foreach my $check (@tree_check) {
@@ -2168,29 +2168,14 @@ sub process {
 # check we are in a valid source file C or perl if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|pl)$/);
 
-# at the beginning of a line any tabs must come first and anything
-# more than 8 must use tabs.
-		if ($rawline =~ /^\+\s* \t\s*\S/ ||
-		    $rawline =~ /^\+\s*        \s*/) {
+# in QEMU, no tabs are allowed
+		if ($rawline =~ /\t/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			$rpt_cleaners = 1;
 			if (ERROR("CODE_INDENT",
-				  "code indent should use tabs where possible\n" . $herevet) &&
+				  "code indent should never use tabs\n" . $herevet) &&
 			    $fix) {
 				$fixed[$linenr - 1] =~ s/^\+([ \t]+)/"\+" . tabify($1)/e;
-			}
-		}
-
-# check for space before tabs.
-		if ($rawline =~ /^\+/ && $rawline =~ / \t/) {
-			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
-			if (WARN("SPACE_BEFORE_TAB",
-				"please, no space before tabs\n" . $herevet) &&
-			    $fix) {
-				while ($fixed[$linenr - 1] =~
-					   s/(^\+.*) {8,8}+\t/$1\t\t/) {}
-				while ($fixed[$linenr - 1] =~
-					   s/(^\+.*) +\t/$1\t/) {}
 			}
 		}
 
@@ -2560,7 +2545,7 @@ sub process {
 
 			#print "line<$line> prevline<$prevline> indent<$indent> sindent<$sindent> check<$check> continuation<$continuation> s<$s> cond_lines<$cond_lines> stat_real<$stat_real> stat<$stat>\n";
 
-			if ($check && (($sindent % 8) != 0 ||
+			if ($check && (($sindent % 4) != 0 ||
 			    ($sindent <= $indent && $s ne ''))) {
 				WARN("SUSPECT_CODE_INDENT",
 				     "suspect code indent for conditional statements ($indent, $sindent)\n" . $herecurr . "$stat_real\n");
@@ -2747,17 +2732,6 @@ sub process {
 			    $fix) {
 				$fixed[$linenr - 1] =~ s/\b(?:static\s+|)DEFINE_PCI_DEVICE_TABLE\s*\(\s*(\w+)\s*\)\s*=\s*/static const struct pci_device_id $1\[\] = /;
 			}
-		}
-
-# check for new typedefs, only function parameters and sparse annotations
-# make sense.
-		if ($line =~ /\btypedef\s/ &&
-		    $line !~ /\btypedef\s+$Type\s*\(\s*\*?$Ident\s*\)\s*\(/ &&
-		    $line !~ /\btypedef\s+$Type\s+$Ident\s*\(/ &&
-		    $line !~ /\b$typeTypedefs\b/ &&
-		    $line !~ /\b__bitwise(?:__|)\b/) {
-			WARN("NEW_TYPEDEFS",
-			     "do not add new typedefs\n" . $herecurr);
 		}
 
 # * goes on variable not on type
@@ -3795,13 +3769,13 @@ sub process {
 			     "vmlinux.lds.h needs VMLINUX_SYMBOL() around C-visible symbols\n" . $herecurr);
 		}
 
-# check for redundant bracing round if etc
-		if ($line =~ /(^.*)\bif\b/ && $1 !~ /else\s*$/) {
+# check for missing bracing round if etc
+		if ($line =~ /(^.*)\bif\b/ && $line !~ /\#\s*if/) {
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, 1);
 			#print "chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
 			#print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n";
-			if ($#chunks > 0 && $level == 0) {
+			if ($#chunks >= 0 && $level == 0) {
 				my @allowed = ();
 				my $allow = 0;
 				my $seen = 0;
@@ -3842,19 +3816,9 @@ sub process {
 					}
 					$allow++;
 				}
-				if ($seen) {
-					my $sum_allowed = 0;
-					foreach (@allowed) {
-						$sum_allowed += $_;
-					}
-					if ($sum_allowed == 0) {
-						WARN("BRACES",
-						     "braces {} are not necessary for any arm of this statement\n" . $herectx);
-					} elsif ($sum_allowed != $allow &&
-						 $seen != $allow) {
-						CHK("BRACES",
-						    "braces {} should be used on all arms of this statement\n" . $herectx);
-					}
+
+				if (!$seen) {
+    					WARN("braces {} are necessary for all arms of this statement\n" . $herectx);
 				}
 			}
 		}
@@ -3900,7 +3864,7 @@ sub process {
 					$allowed = 1;
 				}
 			}
-			if ($level == 0 && $block =~ /^\s*\{/ && !$allowed) {
+			if ($level == 0 && $block !~ /^\s*\{/ && !$allowed) {
 				my $herectx = $here . "\n";
 				my $cnt = statement_rawlines($block);
 
@@ -3909,7 +3873,7 @@ sub process {
 				}
 
 				WARN("BRACES",
-				     "braces {} are not necessary for single statement blocks\n" . $herectx);
+				     "braces {} are necessary even for single statement blocks\n" . $herectx);
 			}
 		}
 
@@ -4627,11 +4591,11 @@ sub process {
 
 		# If there were whitespace errors which cleanpatch can fix
 		# then suggest that.
-		if ($rpt_cleaners) {
-			print "NOTE: whitespace errors detected, you may wish to use scripts/cleanpatch or\n";
-			print "      scripts/cleanfile\n\n";
-			$rpt_cleaners = 0;
-		}
+#		if ($rpt_cleaners) {
+#			print "NOTE: whitespace errors detected, you may wish to use scripts/cleanpatch or\n";
+#			print "      scripts/cleanfile\n\n";
+#			$rpt_cleaners = 0;
+#		}
 	}
 
 	hash_show_words(\%use_type, "Used");
