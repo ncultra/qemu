@@ -2169,7 +2169,7 @@ sub process {
 		next if ($realfile !~ /\.(h|c|pl)$/);
 
 # in QEMU, no tabs are allowed
-		if ($rawline =~ /\t/) {
+		if ($rawline =~ /^\+.*\t/) {
 			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
 			$rpt_cleaners = 1;
 			if (ERROR("CODE_INDENT",
@@ -3823,8 +3823,7 @@ sub process {
 			}
 		}
 		if (!defined $suppress_ifbraces{$linenr - 1} &&
-					$line =~ /\b(if|while|for|else)\b/ &&
-					$line !~ /\#\s*else/) {
+					$line =~ /\b(if|while|for|else)\b/) {
 			my $allowed = 0;
 
 			# Check the pre-context.
