@@ -3131,8 +3131,10 @@ sub process {
 					}
 
 				# , must have a space on the right.
+                                # not required when having a single },{ on one line
 				} elsif ($op eq ',') {
-					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/) {
+					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/ &&
+                                            ($elements[$n] . $elements[$n + 2]) !~ " *}{") {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
 							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
@@ -3141,6 +3143,7 @@ sub process {
 						}
 					}
 
+				
 				# '*' as part of a type definition -- reported already.
 				} elsif ($opv eq '*_') {
 					#warn "'*' is part of type\n";
