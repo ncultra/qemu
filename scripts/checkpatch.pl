@@ -3134,7 +3134,7 @@ sub process {
                                 # not required when having a single },{ on one line
 				} elsif ($op eq ',') {
 					if ($ctx !~ /.x[WEC]/ && $cc !~ /^}/ &&
-                                            ($elements[$n] . $elements[$n + 2]) !~ " *}{") {
++                                            ($elements[$n] . $elements[$n + 2]) !~ " *}{") {
 						if (ERROR("SPACING",
 							  "space required after that '$op' $at\n" . $hereptr)) {
 							$good = $fix_elements[$n] . trim($fix_elements[$n + 1]) . " ";
@@ -3826,7 +3826,8 @@ sub process {
 			}
 		}
 		if (!defined $suppress_ifbraces{$linenr - 1} &&
-					$line =~ /\b(if|while|for|else)\b/) {
+					$line =~ /\b(if|while|for|else)\b/ &&
+		    					$line !~ /\#\s*if/) {
 			my $allowed = 0;
 
 			# Check the pre-context.
