@@ -3820,7 +3820,7 @@ sub process {
 					$allow++;
 				}
 
-				if (!$seen) {
+				if ($seen != ($#chunks + 1)) {
     					WARN("braces {} are necessary for all arms of this statement\n" . $herectx);
 				}
 			}
