@@ -4503,6 +4503,11 @@ sub process {
 			}
 		}
 
+# QEMU specific tests
+		if ($rawline =~ /\b(?:Qemu|QEmu)\b/) {
+			WARN("use QEMU instead of Qemu or QEmu\n" . $herecurr);
+		}
+
 		if ($line =~ /debugfs_create_file.*S_IWUGO/ ||
 		    $line =~ /DEVICE_ATTR.*S_IWUGO/ ) {
 			WARN("EXPORTED_WORLD_WRITABLE",
