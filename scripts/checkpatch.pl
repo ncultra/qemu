@@ -197,6 +197,7 @@ my $dbg_values = 0;
 my $dbg_possible = 0;
 my $dbg_type = 0;
 my $dbg_attr = 0;
+my $dbg_adv_dcs = 0;
 for my $key (keys %debug) {
 	## no critic
 	eval "\${dbg_$key} = '$debug{$key}';";
@@ -3856,6 +3857,8 @@ sub process {
 					$allowed = 1;
 				}
 			}
+                        print "DCS: level=$level block<$block> allowed=$allowed\n"
+                            if $dbg_adv_dcs;
 			if ($level == 0 && $block !~ /^\s*\{/ && !$allowed) {
 				my $herectx = $here . "\n";
 				my $cnt = statement_rawlines($block);
