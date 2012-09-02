@@ -199,6 +199,7 @@ my $dbg_type = 0;
 my $dbg_attr = 0;
 my $dbg_adv_dcs = 0;
 my $dbg_adv_checking = 0;
+my $dbg_adv_apw = 0;
 for my $key (keys %debug) {
 	## no critic
 	eval "\${dbg_$key} = '$debug{$key}';";
@@ -3766,8 +3767,13 @@ sub process {
 		if ($line =~ /(^.*)\bif\b/ && $line !~ /\#\s*if/) {
 			my ($level, $endln, @chunks) =
 				ctx_statement_full($linenr, $realcnt, 1);
-			#print "chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
-			#print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n";
+                        if ($dbg_adv_apw) {
+                            print "APW: chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
+                            print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n"
+                                if $#chunks >= 1;
+                        }
+
+
 			if ($#chunks >= 0 && $level == 0) {
 				my @allowed = ();
 				my $allow = 0;
@@ -3794,30 +3800,36 @@ sub process {
 
 					$seen++ if ($block =~ /^\s*{/);
 
-					#print "cond<$cond> block<$block> allowed<$allowed[$allow]>\n";
+                                        print "APW: cond<$cond> block<$block> allowed<$allowed[$allow]>\n"
+                                            if $dbg_adv_apw;
 					if (statement_lines($cond) > 1) {
-						#print "APW: ALLOWED: cond<$cond>\n";
-						$allowed[$allow] = 1;
+                                        print "APW: cond<$cond> block<$block> allowed<$allowed[$allow]>\n"
+                                            if $dbg_adv_apw;
+					$allowed[$allow] = 1;
+
 					}
 					if ($block =~/\b(?:if|for|while)\b/) {
 						#print "APW: ALLOWED: block<$block>\n";
 						$allowed[$allow] = 1;
 					}
+      
 					if (statement_block_size($block) > 1) {
-						#print "APW: ALLOWED: lines block<$block>\n";
-						$allowed[$allow] = 1;
+					    print "APW: ALLOWED: lines block<$block>\n"
+						if $dbg_adv_apw;
+					    $allowed[$allow] = 1;
 					}
 					$allow++;
 				}
-
+				
 				if ($seen != ($#chunks + 1)) {
-    					WARN("braces {} are necessary for all arms of this statement\n" . $herectx);
+				    WARN("braces {} are necessary for all arms of this statement\n" . $herectx);
 				}
 			}
 		}
+	
 		if (!defined $suppress_ifbraces{$linenr - 1} &&
-					$line =~ /\b(if|while|for|else)\b/ &&
-		    					$line !~ /\#\s*if/) {
+		    $line =~ /\b(if|while|for|else)\b/ &&
+		    $line !~ /\#\s*if/) {
 			my $allowed = 0;
 
 			# Check the pre-context.
@@ -3855,8 +3867,9 @@ sub process {
 					substr($block, 0, length($cond), '');
 				}
 				if ($block =~ /^\s*\{/) {
-					#print "APW: ALLOWED: chunk-1 block<$block>\n";
-					$allowed = 1;
+                                    print "APW: ALLOWED: chunk-1 block<$block>\n"
+                                        if $dbg_adv_apw;
+                                    $allowed = 1;			
 				}
 			}
                         print "DCS: level=$level block<$block> allowed=$allowed\n"
