@@ -198,6 +198,7 @@ my $dbg_possible = 0;
 my $dbg_type = 0;
 my $dbg_attr = 0;
 my $dbg_adv_dcs = 0;
+my $dbg_adv_checking = 0;
 for my $key (keys %debug) {
 	## no critic
 	eval "\${dbg_$key} = '$debug{$key}';";
@@ -3830,7 +3831,8 @@ sub process {
 
 			# Check the condition.
 			my ($cond, $block) = @{$chunks[0]};
-			#print "CHECKING<$linenr> cond<$cond> block<$block>\n";
+                        print "CHECKING<$linenr> cond<$cond> block<$block>\n"
+                            if $dbg_adv_checking;
 			if (defined $cond) {
 				substr($block, 0, length($cond), '');
 			}
