@@ -165,9 +165,11 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
     assert(offset <= INT_MAX);
     snapshots_size = offset;
-
     /* Allocate space for the new snapshot list */
-    snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
+    snapshots_offset = 0;
+    if (snapshots_size) {
+        snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
+    }
     offset = snapshots_offset;
     if (offset < 0) {
         ret = offset;
@@ -180,11 +182,12 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
 
     /* The snapshot list position has not yet been updated, so these clusters
      * must indeed be completely free */
-    ret = qcow2_pre_write_overlap_check(bs, 0, offset, snapshots_size);
-    if (ret < 0) {
-        goto fail;
+    if (snapshots_size) {
+        ret = qcow2_pre_write_overlap_check(bs, 0, offset, snapshots_size);
+        if (ret < 0) {
+            goto fail;
+        }
     }
-
 
     /* Write all snapshots to the new list */
     for(i = 0; i < s->nb_snapshots; i++) {
@@ -590,12 +593,14 @@ int qcow2_snapshot_delete(BlockDriverState *bs,
         return -ENOENT;
     }
     sn = s->snapshots[snapshot_index];
-
     /* Remove it from the snapshot list */
-    memmove(s->snapshots + snapshot_index,
-            s->snapshots + snapshot_index + 1,
-            (s->nb_snapshots - snapshot_index - 1) * sizeof(sn));
     s->nb_snapshots--;
+    if (s->nb_snapshots) {
+        memmove(s->snapshots + snapshot_index,
+                s->snapshots + snapshot_index + 1,
+                (s->nb_snapshots - (snapshot_index - 1)) * sizeof(sn));
+    }
+
     ret = qcow2_write_snapshots(bs);
     if (ret < 0) {
         error_setg_errno(errp, -ret,
