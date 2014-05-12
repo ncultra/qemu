@@ -16,9 +16,9 @@ STEXI
 ETEXI
 
 DEF("create", img_create,
-    "create [-q] [-f fmt] [-o options] filename [size]")
+    "create [-q] [-f fmt] [-b backing-file] [-o options] filename [size]")
 STEXI
-@item create [-q] [-f @var{fmt}] [-o @var{options}] @var{filename} [@var{size}]
+@item create [-q] [-f @var{fmt}] [-b @var{backing_file}] [-o @var{options}] @var{filename} [@var{size}]
 ETEXI
 
 DEF("commit", img_commit,
