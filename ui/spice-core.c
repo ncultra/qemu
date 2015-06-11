@@ -583,7 +583,8 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
     return ret;
 }
 
-static int add_channel(const char *name, const char *value, void *opaque)
+static int add_channel(void *opaque, const char *name, const char *value,
+                       Error **errp)
 {
     int security = 0;
     int rc;
@@ -782,7 +783,7 @@ void qemu_spice_init(void)
     spice_server_set_playback_compression
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
 
-    qemu_opt_foreach(opts, add_channel, &tls_port, 0);
+    qemu_opt_foreach(opts, add_channel, &tls_port, NULL);
 
     spice_server_set_name(spice_server, qemu_name);
     spice_server_set_uuid(spice_server, qemu_uuid);
@@ -804,6 +805,7 @@ void qemu_spice_init(void)
     qemu_spice_audio_init();
 
     qemu_add_vm_change_state_handler(vm_change_state_handler, NULL);
+    qemu_spice_display_stop();
 
     g_free(x509_key_file);
     g_free(x509_cert_file);

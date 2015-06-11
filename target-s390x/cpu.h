@@ -48,7 +48,7 @@
 #define MMU_MODE1_SUFFIX _secondary
 #define MMU_MODE2_SUFFIX _home
 
-#define MMU_USER_IDX 1
+#define MMU_USER_IDX 0
 
 #define MAX_EXT_QUEUE 16
 #define MAX_IO_QUEUE 16
@@ -81,7 +81,11 @@ typedef struct MchkQueue {
 
 typedef struct CPUS390XState {
     uint64_t regs[16];     /* GP registers */
-    CPU_DoubleU fregs[16]; /* FP registers */
+    /*
+     * The floating point registers are part of the vector registers.
+     * vregs[0][0] -> vregs[15][0] are 16 floating point registers
+     */
+    CPU_DoubleU vregs[32][2];  /* vector registers */
     uint32_t aregs[16];    /* access registers */
 
     uint32_t fpc;          /* floating-point control register */
@@ -161,6 +165,11 @@ typedef struct CPUS390XState {
     uint8_t sigp_order;
 
 } CPUS390XState;
+
+static inline CPU_DoubleU *get_freg(CPUS390XState *cs, int nr)
+{
+    return &cs->vregs[nr][0];
+}
 
 #include "cpu-qom.h"
 #include <sysemu/kvm.h>
@@ -293,13 +302,39 @@ typedef struct CPUS390XState {
 #define CR0_LOWPROT             0x0000000010000000ULL
 #define CR0_EDAT                0x0000000000800000ULL
 
+/* MMU */
+#define MMU_PRIMARY_IDX         0
+#define MMU_SECONDARY_IDX       1
+#define MMU_HOME_IDX            2
+
 static inline int cpu_mmu_index (CPUS390XState *env)
 {
-    if (env->psw.mask & PSW_MASK_PSTATE) {
-        return 1;
+    switch (env->psw.mask & PSW_MASK_ASC) {
+    case PSW_ASC_PRIMARY:
+        return MMU_PRIMARY_IDX;
+    case PSW_ASC_SECONDARY:
+        return MMU_SECONDARY_IDX;
+    case PSW_ASC_HOME:
+        return MMU_HOME_IDX;
+    case PSW_ASC_ACCREG:
+        /* Fallthrough: access register mode is not yet supported */
+    default:
+        abort();
     }
+}
 
-    return 0;
+static inline uint64_t cpu_mmu_idx_to_asc(int mmu_idx)
+{
+    switch (mmu_idx) {
+    case MMU_PRIMARY_IDX:
+        return PSW_ASC_PRIMARY;
+    case MMU_SECONDARY_IDX:
+        return PSW_ASC_SECONDARY;
+    case MMU_HOME_IDX:
+        return PSW_ASC_HOME;
+    default:
+        abort();
+    }
 }
 
 static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
@@ -936,6 +971,7 @@ struct sysib_322 {
 #define SIGP_SET_PREFIX        0x0d
 #define SIGP_STORE_STATUS_ADDR 0x0e
 #define SIGP_SET_ARCH          0x12
+#define SIGP_STORE_ADTL_STATUS 0x17
 
 /* SIGP condition codes */
 #define SIGP_CC_ORDER_CODE_ACCEPTED 0
@@ -983,6 +1019,11 @@ int s390_cpu_virt_mem_rw(S390CPU *cpu, vaddr laddr, uint8_t ar, void *hostbuf,
 /* Converts ns to s390's clock format */
 static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
+}
+
+/* Converts s390's clock format to ns */
+static inline uint64_t tod2time(uint64_t t) {
+    return (t * 125) >> 9;
 }
 
 static inline void cpu_inject_ext(S390CPU *cpu, uint32_t code, uint32_t param,
@@ -1180,4 +1221,18 @@ static inline int s390_assign_subch_ioeventfd(EventNotifier *notifier,
     }
 }
 
+#ifdef CONFIG_KVM
+static inline bool vregs_needed(void *opaque)
+{
+    if (kvm_enabled()) {
+        return kvm_check_extension(kvm_state, KVM_CAP_S390_VECTOR_REGISTERS);
+    }
+    return 0;
+}
+#else
+static inline bool vregs_needed(void *opaque)
+{
+    return 0;
+}
+#endif
 #endif

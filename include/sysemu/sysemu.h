@@ -137,6 +137,7 @@ extern const char *mem_path;
 extern int mem_prealloc;
 
 #define MAX_NODES 128
+#define NUMA_NODE_UNASSIGNED MAX_NODES
 
 /* The following shall be true for all CPUs:
  *   cpu->cpu_index < max_cpus <= MAX_CPUMASK_BITS
@@ -161,9 +162,7 @@ extern unsigned int nb_prom_envs;
 void hmp_drive_add(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
-void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int hmp_pcie_aer_inject_error(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data);
+void hmp_pcie_aer_inject_error(Monitor *mon, const QDict *qdict);
 
 /* serial ports */
 
